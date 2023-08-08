@@ -17,6 +17,7 @@ public class TwitchOAuth : MonoBehaviour
     private readonly string twitchBanUrl = "https://api.twitch.tv/helix/moderation/bans";
     private readonly string twitchAuthUrl = "https://id.twitch.tv/oauth2/authorize";
     private readonly string twitchVipUrl = "https://api.twitch.tv/helix/channels/vips";
+    private readonly string twitchSettingsUrl = "https://api.twitch.tv/helix/chat/settings";
 
     private readonly string twitchRedirectHost = "http://localhost:";
     private int twitchFreePort;
@@ -73,10 +74,13 @@ public class TwitchOAuth : MonoBehaviour
         if (!oauthTokenRetrieved) return;
         
         TwitchController.Login(channelName, new TwitchLoginInfo(channelName, authToken));
+        UpdateTwitchSettings();
         oauthTokenRetrieved = false;
         InvokeRepeating(nameof(ValidateToken), 3600, 3600);
     }
-    
+
+
+
     public void SetTimeoutOption(bool state)
     {
         enableTimeout = state;
@@ -126,7 +130,7 @@ public class TwitchOAuth : MonoBehaviour
     /// </summary>
     public void InitiateTwitchAuth()
     {
-        List<string> scopes = new List<string>{"chat:read"};
+        List<string> scopes = new List<string>{"chat:read+moderator:manage:chat_settings"};
         
         if (enableTimeout)
         {
@@ -251,6 +255,15 @@ public class TwitchOAuth : MonoBehaviour
         if(shouldConnectChat) oauthTokenRetrieved = true;
     }
     
+    private async Task UpdateTwitchSettings()
+    {
+        string apiUrl = twitchSettingsUrl +
+                        "?broadcaster_id" + userId +
+                        "&moderator_id" + userId;
+        string body = $"{{\"data\": {{\"non_moderator_chat_delay\":false,\"unique_chat_mode\":false}}}}";
+        await CallApi(apiUrl, "PATCH", body);
+    }
+    
     private async Task setVIP(string targetUserId, bool state)
     {
         string apiUrl = twitchVipUrl +
@@ -270,6 +283,8 @@ public class TwitchOAuth : MonoBehaviour
 
         await CallApi(apiUrl, "POST", body);
     }
+    
+
 
     private async Task<string> CallApi(string endpoint, string method = "GET", string body = "", string[] headers = null)
     {
